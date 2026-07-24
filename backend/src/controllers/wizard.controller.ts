@@ -416,8 +416,11 @@ export const bootstrapStore = async (req: Request, res: Response) => {
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Wizard onboarding error:', error);
-    return res.status(500).json({ error: 'Server failed to build and bootstrap store' });
+    return res.status(500).json({ 
+      error: 'Server failed to build and bootstrap store',
+      details: error.message || error.toString()
+    });
   }
 };

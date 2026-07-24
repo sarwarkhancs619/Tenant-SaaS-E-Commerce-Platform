@@ -127,7 +127,7 @@ export default function OnboardingWizard() {
       setStep(8); // Success page
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.error || 'Failed to complete store setup. Please check your inputs.');
+      setError(err.response?.data?.details || err.response?.data?.error || 'Failed to complete store setup. Please check your inputs.');
     } finally {
       setLoading(false);
     }
