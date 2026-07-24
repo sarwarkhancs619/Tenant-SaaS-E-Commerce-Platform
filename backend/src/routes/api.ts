@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { bootstrapStore } from '../controllers/wizard.controller';
-import { deleteStore } from '../controllers/platform.controller';
+import { 
+  deleteStore, 
+  getPlatformStats, 
+  getPlatformStores, 
+  updateStoreStatus, 
+  updateStorePlan 
+} from '../controllers/platform.controller';
 import { login, registerStaff, getProfile } from '../controllers/auth.controller';
 import { 
   getCategories, 
@@ -36,6 +42,10 @@ const router = Router();
 // PUBLIC WIZARD ONBOARDING & PLATFORM UTILS
 // ==========================================
 router.post('/wizard/bootstrap', bootstrapStore);
+router.get('/platform/stats', getPlatformStats);
+router.get('/platform/stores', getPlatformStores);
+router.patch('/platform/stores/:slug/status', updateStoreStatus);
+router.patch('/platform/stores/:slug/plan', updateStorePlan);
 router.delete('/platform/stores/:slug', deleteStore);
 
 // ==========================================

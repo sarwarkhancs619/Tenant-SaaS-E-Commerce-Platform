@@ -53,5 +53,13 @@ export const requireTenant = (req: Request, res: Response, next: NextFunction) =
   if (!req.tenantId || !req.tenant) {
     return res.status(404).json({ error: 'Store not found' });
   }
+
+  if (req.tenant.status === 'SUSPENDED') {
+    return res.status(403).json({ 
+      error: 'SUSPENDED', 
+      message: 'This storefront has been suspended by the platform administrator.' 
+    });
+  }
+
   next();
 };

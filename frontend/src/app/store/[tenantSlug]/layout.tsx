@@ -3,7 +3,7 @@
 import React, { useEffect, useState, createContext, useContext } from 'react';
 import { useParams, useRouter, usePathname } from 'next/navigation';
 import { api } from '@/lib/api';
-import { ShoppingCart, User, Phone, ShoppingBag, Loader2 } from 'lucide-react';
+import { ShoppingCart, User, Phone, ShoppingBag, Loader2, AlertCircle } from 'lucide-react';
 
 interface TenantContextType {
   tenant: any;
@@ -33,6 +33,7 @@ export default function TenantStoreLayout({ children }: { children: React.ReactN
   const [tenant, setTenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isSuspended, setIsSuspended] = useState(false);
   const [cart, setCart] = useState<Array<any>>([]);
   const [customer, setCustomer] = useState<any>(null);
   const [customerToken, setCustomerToken] = useState<string | null>(null);
@@ -88,7 +89,11 @@ export default function TenantStoreLayout({ children }: { children: React.ReactN
         setTenant(res.data);
       } catch (err: any) {
         console.error(err);
-        setError('Store not found or failed to load store configurations.');
+        if (err.response?.status === 403 && err.response?.data?.error === 'SUSPENDED') {
+          setIsSuspended(true);
+        } else {
+          setError('Store not found or failed to load store configurations.');
+        }
       } finally {
         setLoading(false);
       }
@@ -160,6 +165,19 @@ export default function TenantStoreLayout({ children }: { children: React.ReactN
           {children}
         </div>
       </TenantContext.Provider>
+    );
+  }
+
+  if (isSuspended) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-full mb-4">
+          <AlertCircle className="w-10 h-10" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Storefront Suspended</h2>
+        <p className="text-slate-400 max-w-md mb-6">This storefront has been temporarily suspended by the platform administrator.</p>
+        <span className="text-xs text-slate-600">Please contact support if you are the store owner.</span>
+      </div>
     );
   }
 
