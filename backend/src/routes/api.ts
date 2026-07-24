@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { bootstrapStore } from '../controllers/wizard.controller';
+import { deleteStore } from '../controllers/platform.controller';
 import { login, registerStaff, getProfile } from '../controllers/auth.controller';
 import { 
   getCategories, 
@@ -32,9 +33,10 @@ import { extractTenant, requireTenant } from '../middleware/tenant';
 const router = Router();
 
 // ==========================================
-// PUBLIC WIZARD ONBOARDING
+// PUBLIC WIZARD ONBOARDING & PLATFORM UTILS
 // ==========================================
 router.post('/wizard/bootstrap', bootstrapStore);
+router.delete('/platform/stores/:slug', deleteStore);
 
 // ==========================================
 // PUBLIC CUSTOMER STOREFRONT APIs
