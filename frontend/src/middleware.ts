@@ -18,6 +18,13 @@ export function middleware(request: NextRequest) {
   const host = hostname.split(':')[0];
   const parts = host.split('.');
 
+  console.log("MIDDLEWARE TRACE:", {
+    hostname,
+    host,
+    parts,
+    urlPathname: url.pathname
+  });
+
   let tenantSlug = '';
 
   // Extract subdomain if hostname has one
@@ -40,6 +47,11 @@ export function middleware(request: NextRequest) {
   if (tenantSlug) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-tenant-slug', tenantSlug);
+
+    console.log("MIDDLEWARE REWRITE:", {
+      tenantSlug,
+      targetUrl: `/store/${tenantSlug}${url.pathname}`
+    });
 
     return NextResponse.rewrite(
       new URL(`/store/${tenantSlug}${url.pathname}`, request.url),
