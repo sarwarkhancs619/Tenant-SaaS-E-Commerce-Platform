@@ -47,8 +47,15 @@ export const checkout = async (req: Request, res: Response) => {
 
     // 2. Validate Items and Calculate Prices
     let subtotal = 0;
-    const orderItemsToCreate = [];
-    const stockUpdates = [];
+    const orderItemsToCreate: Array<{
+      productId: string;
+      quantity: number;
+      price: number;
+    }> = [];
+    const stockUpdates: Array<{
+      inventoryId: string;
+      newQty: number;
+    }> = [];
 
     for (const item of items) {
       const product = await prisma.product.findFirst({
