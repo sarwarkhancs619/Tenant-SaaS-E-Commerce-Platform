@@ -155,7 +155,7 @@ export default function TenantStoreLayout({ children }: { children: React.ReactN
   // Admin pages layout override (do not render store header/footer)
   if (pathname.includes('/admin')) {
     return (
-      <TenantContext.Provider value={{ tenant, cart, addToCart, removeFromCart, clearCart }}>
+      <TenantContext.Provider value={{ tenant, cart, addToCart, removeFromCart, clearCart, customer, customerToken, setCustomerSession }}>
         <div className="bg-slate-950 min-h-screen text-slate-100 font-sans">
           {children}
         </div>
