@@ -1,7 +1,8 @@
 # Multi-stage production build
-FROM node:18-alpine AS builder
+FROM node:18-slim AS builder
 
-RUN apk add --no-cache openssl libc6-compat
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -16,9 +17,10 @@ RUN npx prisma generate
 RUN npm run build
 
 # Runner stage
-FROM node:18-alpine AS runner
+FROM node:18-slim AS runner
 
-RUN apk add --no-cache openssl libc6-compat
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
