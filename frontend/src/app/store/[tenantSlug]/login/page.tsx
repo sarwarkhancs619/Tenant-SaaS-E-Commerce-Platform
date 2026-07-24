@@ -121,7 +121,7 @@ export default function CustomerLoginPage() {
         </form>
 
         <div className="text-center pt-2 border-t border-opacity-5 text-xs opacity-75" style={{ borderColor: 'var(--tenant-text)' }}>
-          <span>Don't have a secure account? </span>
+          <span>Don&apos;t have a secure account? </span>
           <button 
             onClick={() => router.push(`/store/${slug}/register`)}
             className="font-bold underline"
