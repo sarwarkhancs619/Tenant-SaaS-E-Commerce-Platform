@@ -54,10 +54,20 @@ export default function OnboardingWizard() {
       
       // Auto-populate slug and admin email based on business name
       if (name === 'businessName') {
-        updated.subdomain = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+        updated.subdomain = value.toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-');
         if (!updated.adminEmail && value) {
           updated.adminEmail = `admin@${updated.subdomain}.com`;
         }
+      }
+      
+      // Sanitize subdomain field on the fly
+      if (name === 'subdomain') {
+        updated.subdomain = value.toLowerCase()
+          .replace(/[^a-z0-9-]/g, '')
+          .replace(/-+/g, '-');
       }
       return updated;
     });
@@ -92,10 +102,28 @@ export default function OnboardingWizard() {
   const handleNext = () => {
     // Basic step validations
     if (step === 1) {
-      if (!formData.businessName || !formData.subdomain || !formData.email) {
+      if (!formData.businessName.trim() || !formData.subdomain.trim() || !formData.email.trim()) {
         setError('Please fill in business name, subdomain slug, and contact email.');
         return;
       }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        setError('Please enter a valid contact email address.');
+        return;
+      }
+
+      if (formData.subdomain.trim().length < 3) {
+        setError('Subdomain must be at least 3 characters long.');
+        return;
+      }
+
+      const reserved = ['www', 'admin', 'localhost', 'api', 'platform', 'health', 'superadmin'];
+      if (reserved.includes(formData.subdomain.trim().toLowerCase())) {
+        setError('This subdomain is reserved. Please choose another one.');
+        return;
+      }
+
       setError('');
     }
     setStep(prev => prev + 1);
@@ -107,15 +135,36 @@ export default function OnboardingWizard() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.adminName || !formData.adminEmail || !formData.adminPassword) {
+    if (!formData.adminName.trim() || !formData.adminEmail.trim() || !formData.adminPassword) {
       setError('Please set up your owner name, login email, and login password.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.adminEmail.trim())) {
+      setError('Please enter a valid administrator email address.');
+      return;
+    }
+
+    if (formData.adminPassword.length < 6) {
+      setError('Admin password must be at least 6 characters long.');
       return;
     }
 
     setLoading(true);
     setError('');
     try {
-      const response = await api.post('/wizard/bootstrap', formData);
+      const payload = {
+        ...formData,
+        businessName: formData.businessName.trim(),
+        subdomain: formData.subdomain.trim().toLowerCase(),
+        description: formData.description.trim(),
+        email: formData.email.trim(),
+        adminName: formData.adminName.trim(),
+        adminEmail: formData.adminEmail.trim()
+      };
+      
+      const response = await api.post('/wizard/bootstrap', payload);
       const data = response.data;
       
       // Store auth session

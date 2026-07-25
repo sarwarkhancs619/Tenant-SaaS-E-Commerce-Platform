@@ -196,11 +196,32 @@ export const bootstrapStore = async (req: Request, res: Response) => {
 
   try {
     // 1. Validations
-    if (!businessName || !subdomain || !adminEmail || !adminPassword || !adminName) {
+    if (!businessName || !subdomain || !email || !adminEmail || !adminPassword || !adminName) {
       return res.status(400).json({ error: 'Missing mandatory fields' });
     }
 
+    // Email format checks
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid contact email format.' });
+    }
+    if (!emailRegex.test(adminEmail)) {
+      return res.status(400).json({ error: 'Invalid administrator email format.' });
+    }
+
     const slug = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (slug.length < 3) {
+      return res.status(400).json({ error: 'Subdomain slug must be at least 3 characters long.' });
+    }
+
+    const reservedSubdomains = ['www', 'admin', 'localhost', 'api', 'platform', 'health', 'superadmin'];
+    if (reservedSubdomains.includes(slug)) {
+      return res.status(400).json({ error: 'This subdomain is reserved. Please choose another one.' });
+    }
+
+    if (adminPassword.length < 6) {
+      return res.status(400).json({ error: 'Admin password must be at least 6 characters long.' });
+    }
     
     // Ensure uniqueness
     const existingTenant = await prisma.tenant.findUnique({ where: { slug } });
