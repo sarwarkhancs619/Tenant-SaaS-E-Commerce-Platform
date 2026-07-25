@@ -1,6 +1,15 @@
 import axios from 'axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+let API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+// Handle cases where the environment variable is configured as a plain domain (e.g. without protocol and /api suffix)
+if (API_BASE && !API_BASE.startsWith('http://') && !API_BASE.startsWith('https://') && !API_BASE.startsWith('/')) {
+  const isLocal = API_BASE.includes('localhost') || API_BASE.includes('127.0.0.1');
+  API_BASE = `${isLocal ? 'http://' : 'https://'}${API_BASE}`;
+}
+if (API_BASE && !API_BASE.endsWith('/api') && !API_BASE.endsWith('/api/')) {
+  API_BASE = API_BASE.endsWith('/') ? `${API_BASE}api` : `${API_BASE}/api`;
+}
 
 export const api = axios.create({
   baseURL: API_BASE,
