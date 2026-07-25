@@ -38,7 +38,7 @@ export default function SuperAdminDashboard() {
   // Dashboard Data
   const [stats, setStats] = useState<any>(null);
   const [stores, setStores] = useState<Array<any>>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
   // Search & Filter
