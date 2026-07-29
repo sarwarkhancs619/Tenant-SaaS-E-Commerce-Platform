@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { prisma } from '../config/db';
+import { sendOtpEmail, sendWelcomeEmail } from '../utils/email';
 
 // Help helper to get default configurations based on category
 const getCategoryDefaults = (category: string) => {
@@ -160,8 +162,106 @@ const getCategoryDefaults = (category: string) => {
   };
 };
 
-// Wizard onboarding handler
-export const bootstrapStore = async (req: Request, res: Response) => {
+// Init store creation (Step 1 of 2)
+export const initStoreCreation = async (req: Request, res: Response) => {
+  const {
+    businessName,
+    subdomain,
+    email,
+    adminEmail,
+    adminPassword,
+    adminName
+  } = req.body;
+
+  try {
+    // 1. Validations
+    if (!businessName || !subdomain || !email || !adminEmail || !adminPassword || !adminName) {
+      return res.status(400).json({ error: 'Missing mandatory fields' });
+    }
+
+    // Email format checks
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email) || !emailRegex.test(adminEmail)) {
+      return res.status(400).json({ error: 'Invalid email format.' });
+    }
+
+    const slug = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (slug.length < 3) {
+      return res.status(400).json({ error: 'Subdomain slug must be at least 3 characters long.' });
+    }
+
+    const reservedSubdomains = ['www', 'admin', 'localhost', 'api', 'platform', 'health', 'superadmin'];
+    if (reservedSubdomains.includes(slug)) {
+      return res.status(400).json({ error: 'This subdomain is reserved. Please choose another one.' });
+    }
+
+    if (adminPassword.length < 6) {
+      return res.status(400).json({ error: 'Admin password must be at least 6 characters long.' });
+    }
+    
+    // Ensure uniqueness
+    const existingTenant = await prisma.tenant.findUnique({ where: { slug } });
+    if (existingTenant) {
+      return res.status(400).json({ error: 'Subdomain already taken. Please choose another one.' });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email: adminEmail } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Admin email already registered.' });
+    }
+
+    // Generate a 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
+    // Create a JWT containing the form data and OTP hash
+    const jwtSecret = process.env.JWT_SECRET || 'super-secret-key-12345';
+    const pendingToken = jwt.sign(
+      { formData: req.body, otpHash },
+      jwtSecret,
+      { expiresIn: '15m' }
+    );
+
+    // Send the OTP via email
+    await sendOtpEmail(adminEmail, otp);
+
+    return res.status(200).json({
+      message: 'Verification email sent successfully',
+      pendingToken
+    });
+
+  } catch (error: any) {
+    console.error('Init store creation error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to initiate store setup',
+      details: error.message || error.toString()
+    });
+  }
+};
+
+// Wizard onboarding handler (Step 2 of 2)
+export const verifyAndBootstrapStore = async (req: Request, res: Response) => {
+  const { pendingToken, otp } = req.body;
+
+  if (!pendingToken || !otp) {
+    return res.status(400).json({ error: 'Missing verification token or OTP' });
+  }
+
+  let decoded: any;
+  try {
+    const jwtSecret = process.env.JWT_SECRET || 'super-secret-key-12345';
+    decoded = jwt.verify(pendingToken, jwtSecret);
+  } catch (err) {
+    return res.status(400).json({ error: 'Invalid or expired verification token' });
+  }
+
+  const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+  if (otpHash !== decoded.otpHash) {
+    return res.status(400).json({ error: 'Incorrect verification code' });
+  }
+
+  const formData = decoded.formData;
+
   const {
     // Step 1: Business Details
     businessName,
@@ -192,38 +292,12 @@ export const bootstrapStore = async (req: Request, res: Response) => {
     adminEmail,
     adminPassword,
     adminName
-  } = req.body;
+  } = formData;
 
   try {
-    // 1. Validations
-    if (!businessName || !subdomain || !email || !adminEmail || !adminPassword || !adminName) {
-      return res.status(400).json({ error: 'Missing mandatory fields' });
-    }
-
-    // Email format checks
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: 'Invalid contact email format.' });
-    }
-    if (!emailRegex.test(adminEmail)) {
-      return res.status(400).json({ error: 'Invalid administrator email format.' });
-    }
-
     const slug = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    if (slug.length < 3) {
-      return res.status(400).json({ error: 'Subdomain slug must be at least 3 characters long.' });
-    }
-
-    const reservedSubdomains = ['www', 'admin', 'localhost', 'api', 'platform', 'health', 'superadmin'];
-    if (reservedSubdomains.includes(slug)) {
-      return res.status(400).json({ error: 'This subdomain is reserved. Please choose another one.' });
-    }
-
-    if (adminPassword.length < 6) {
-      return res.status(400).json({ error: 'Admin password must be at least 6 characters long.' });
-    }
     
-    // Ensure uniqueness
+    // Additional uniqueness check just in case it was taken while waiting for OTP
     const existingTenant = await prisma.tenant.findUnique({ where: { slug } });
     if (existingTenant) {
       return res.status(400).json({ error: 'Subdomain already taken. Please choose another one.' });
@@ -418,6 +492,11 @@ export const bootstrapStore = async (req: Request, res: Response) => {
         details: `Successfully set up and bootstrapped store for ${businessName} (${category}).`
       }
     });
+
+    // Send Welcome Email
+    const customerUrl = `http://${tenant.slug}.platform.com`; // Update according to actual domain logic
+    const adminUrl = `http://${tenant.slug}.platform.com/admin`; // Update according to actual domain logic
+    await sendWelcomeEmail(owner.email, tenant.name, customerUrl, adminUrl);
 
     return res.status(201).json({
       message: 'Store created successfully',

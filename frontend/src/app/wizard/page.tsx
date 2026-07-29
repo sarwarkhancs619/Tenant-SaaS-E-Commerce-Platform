@@ -11,6 +11,8 @@ export default function OnboardingWizard() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [successData, setSuccessData] = useState<any>(null);
+  const [pendingToken, setPendingToken] = useState('');
+  const [otp, setOtp] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -164,7 +166,30 @@ export default function OnboardingWizard() {
         adminEmail: formData.adminEmail.trim()
       };
       
-      const response = await api.post('/wizard/bootstrap', payload);
+      const response = await api.post('/wizard/init', payload);
+      setPendingToken(response.data.pendingToken);
+      setStep(8); // Email Verification page
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.details || err.response?.data?.error || 'Failed to initiate store setup. Please check your inputs.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!otp.trim()) {
+      setError('Please enter the verification code.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.post('/wizard/verify', {
+        pendingToken,
+        otp: otp.trim()
+      });
       const data = response.data;
       
       // Store auth session
@@ -173,10 +198,10 @@ export default function OnboardingWizard() {
       localStorage.setItem('saas_tenant_slug', data.tenant.slug);
       
       setSuccessData(data);
-      setStep(8); // Success page
+      setStep(9); // Success page
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.details || err.response?.data?.error || 'Failed to complete store setup. Please check your inputs.');
+      setError(err.response?.data?.details || err.response?.data?.error || 'Invalid or expired verification code.');
     } finally {
       setLoading(false);
     }
@@ -190,10 +215,10 @@ export default function OnboardingWizard() {
       <div className="max-w-2xl w-full bg-slate-900/60 border border-slate-800/80 rounded-3xl p-8 md:p-10 shadow-2xl relative z-10 backdrop-blur-md">
         
         {/* Wizard Progress Line */}
-        {step < 8 && (
+        {step < 9 && (
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Step {step} of 7</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Step {step} of 8</span>
               <span className="text-sm font-bold text-indigo-400">
                 {step === 1 && 'Store Details'}
                 {step === 2 && 'Business Category'}
@@ -202,12 +227,13 @@ export default function OnboardingWizard() {
                 {step === 5 && 'Payment Methods'}
                 {step === 6 && 'Shipping Methods'}
                 {step === 7 && 'Review & Credentials'}
+                {step === 8 && 'Email Verification'}
               </span>
             </div>
             <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-indigo-600 rounded-full transition-all duration-300"
-                style={{ width: `${(step / 7) * 100}%` }}
+                style={{ width: `${(step / 8) * 100}%` }}
               />
             </div>
           </div>
@@ -515,9 +541,35 @@ export default function OnboardingWizard() {
         )}
 
         {/* ==========================================
-            STEP 8: SUCCESS SCREEN
+            STEP 8: EMAIL VERIFICATION
             ========================================== */}
-        {step === 8 && successData && (
+        {step === 8 && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-white mb-2">Verify Your Email</h2>
+              <p className="text-slate-400 text-sm">We've sent a 6-digit verification code to <strong className="text-white">{formData.adminEmail}</strong>. Please enter it below.</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">Verification Code</label>
+                <input 
+                  type="text" 
+                  value={otp}
+                  onChange={e => setOtp(e.target.value)}
+                  placeholder="e.g. 123456"
+                  maxLength={6}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none transition text-white text-center font-mono tracking-widest text-xl"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            STEP 9: SUCCESS SCREEN
+            ========================================== */}
+        {step === 9 && successData && (
           <div className="text-center space-y-6 py-6">
             <div className="mx-auto bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-full w-20 h-20 flex items-center justify-center text-emerald-400 mb-2 shadow-lg shadow-emerald-500/10">
               <Check className="w-10 h-10" />
@@ -567,13 +619,13 @@ export default function OnboardingWizard() {
         )}
 
         {/* Navigation Buttons */}
-        {step < 8 && (
+        {step < 9 && (
           <div className="flex justify-between items-center mt-10 pt-6 border-t border-slate-800/60">
             <button
               onClick={handleBack}
-              disabled={step === 1}
+              disabled={step === 1 || step === 8}
               className={`flex items-center space-x-2 text-sm font-semibold transition px-4 py-2.5 rounded-xl ${
-                step === 1 
+                step === 1 || step === 8
                   ? 'text-slate-600 cursor-not-allowed' 
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
               }`}
@@ -590,9 +642,27 @@ export default function OnboardingWizard() {
                 <span>Continue</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-            ) : (
+            ) : step === 7 ? (
               <button
                 onClick={handleSubmit}
+                disabled={loading}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-7 py-3 rounded-xl text-sm font-bold shadow-xl shadow-indigo-600/30 transition flex items-center space-x-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Sending Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Verify Email</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={handleVerify}
                 disabled={loading}
                 className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-7 py-3 rounded-xl text-sm font-bold shadow-xl shadow-indigo-600/30 transition flex items-center space-x-2"
               >

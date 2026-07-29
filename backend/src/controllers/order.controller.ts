@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import { sendOrderNotificationEmail } from '../utils/email';
 
 // Checkout / Place Order (Public Customer Flow)
 export const checkout = async (req: Request, res: Response) => {
@@ -146,6 +147,24 @@ export const checkout = async (req: Request, res: Response) => {
         details: `Customer ${customerName} placed order ${orderNumber} totaling ${currentTenant.currency} ${total.toFixed(2)}.`
       }
     });
+
+    // Send email notification to tenant (vendor)
+    await sendOrderNotificationEmail(
+      currentTenant.email, 
+      currentTenant.name, 
+      {
+        orderNumber: order.orderNumber,
+        total: order.total,
+        subtotal: order.subtotal,
+        tax: order.tax,
+        shippingFee: order.shippingFee,
+        paymentMethod: order.paymentMethod,
+        customerName: customerName,
+        customerEmail: customerEmail,
+        shippingAddress: JSON.parse(order.shippingAddress),
+        items: order.items.map((i: any) => ({ name: i.product.name, quantity: i.quantity, price: i.price }))
+      }
+    );
 
     return res.status(201).json({
       message: 'Order placed successfully',
@@ -298,5 +317,62 @@ export const getInvoice = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get invoice error:', error);
     return res.status(500).json({ error: 'Failed to generate invoice details' });
+  }
+};
+
+export const exportTodayOrdersCsv = async (req: Request, res: Response) => {
+  const currentTenantId = req.tenantId;
+
+  if (!currentTenantId) {
+    return res.status(400).json({ error: 'Tenant context required' });
+  }
+
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const orders = await prisma.order.findMany({
+      where: { 
+        tenantId: currentTenantId,
+        createdAt: {
+          gte: today
+        }
+      },
+      include: {
+        customer: true,
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (orders.length === 0) {
+      return res.status(404).json({ error: 'No orders found for today' });
+    }
+
+    const headers = ['Order Number', 'Date', 'Customer Name', 'Customer Email', 'Status', 'Payment Status', 'Payment Method', 'Total', 'Shipping Fee'];
+    
+    const rows = orders.map(order => [
+      order.orderNumber,
+      order.createdAt.toISOString(),
+      order.customer?.name || 'N/A',
+      order.customer?.email || 'N/A',
+      order.status,
+      order.paymentStatus,
+      order.paymentMethod,
+      order.total.toFixed(2),
+      order.shippingFee.toFixed(2)
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=today_orders.csv');
+    return res.status(200).send(csvContent);
+
+  } catch (error) {
+    console.error('Export today orders error:', error);
+    return res.status(500).json({ error: 'Failed to export orders' });
   }
 };

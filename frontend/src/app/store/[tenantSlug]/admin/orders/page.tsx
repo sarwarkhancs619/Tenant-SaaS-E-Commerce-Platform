@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Truck, CheckCircle, Package, DollarSign, Printer, X } from 'lucide-react';
+import { Truck, CheckCircle, Package, DollarSign, Printer, X, Download } from 'lucide-react';
 
 export default function AdminOrdersPage() {
   const params = useParams();
@@ -76,6 +76,26 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const handleExportToday = async () => {
+    try {
+      const res = await api.get('/admin/orders/export/today', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `orders_today_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e: any) {
+      console.error(e);
+      if (e.response?.status === 404) {
+        alert('No orders found for today.');
+      } else {
+        alert('Failed to export orders.');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -87,10 +107,19 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-8">
-      {/* Title */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-white">Customer Orders</h2>
-        <p className="text-xs text-slate-400 mt-1">Manage order statuses, input shipping numbers, and review printable invoice details.</p>
+      {/* Title & Actions */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">Customer Orders</h2>
+          <p className="text-xs text-slate-400 mt-1">Manage order statuses, input shipping numbers, and review printable invoice details.</p>
+        </div>
+        <button
+          onClick={handleExportToday}
+          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-emerald-600/20 transition flex items-center space-x-2"
+        >
+          <Download className="w-4 h-4" />
+          <span>Export Today's Orders (CSV)</span>
+        </button>
       </div>
 
       {/* Orders Table */}

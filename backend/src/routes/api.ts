@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { bootstrapStore } from '../controllers/wizard.controller';
+import { initStoreCreation, verifyAndBootstrapStore } from '../controllers/wizard.controller';
 import { 
   deleteStore, 
   getPlatformStats, 
@@ -24,7 +24,7 @@ import {
   getAdminReviews,
   deleteAdminReview
 } from '../controllers/review.controller';
-import { checkout, getOrders, updateOrderStatus, getInvoice } from '../controllers/order.controller';
+import { checkout, getOrders, updateOrderStatus, getInvoice, exportTodayOrdersCsv } from '../controllers/order.controller';
 import { getPages, getPageBySlug, updatePageSections, createPage } from '../controllers/builder.controller';
 import { generateDescription, updateStoreSettings, getReports } from '../controllers/ai.controller';
 import { requireAuth } from '../middleware/auth';
@@ -41,7 +41,8 @@ const router = Router();
 // ==========================================
 // PUBLIC WIZARD ONBOARDING & PLATFORM UTILS
 // ==========================================
-router.post('/wizard/bootstrap', bootstrapStore);
+router.post('/wizard/init', initStoreCreation);
+router.post('/wizard/verify', verifyAndBootstrapStore);
 router.get('/platform/stats', getPlatformStats);
 router.get('/platform/stores', getPlatformStores);
 router.patch('/platform/stores/:slug/status', updateStoreStatus);
@@ -127,6 +128,7 @@ router.post('/admin/inventory/stock', extractTenant, requireTenant, requireAuth,
 
 // Order Management
 router.get('/admin/orders', extractTenant, requireTenant, requireAuth, requireRoles(adminStaffRoles), getOrders);
+router.get('/admin/orders/export/today', extractTenant, requireTenant, requireAuth, requireRoles(adminStaffRoles), exportTodayOrdersCsv);
 router.patch('/admin/orders/:id', extractTenant, requireTenant, requireAuth, requireRoles(adminStaffRoles), updateOrderStatus);
 router.get('/admin/orders/:id/invoice', extractTenant, requireTenant, requireAuth, requireRoles(adminStaffRoles), getInvoice);
 
