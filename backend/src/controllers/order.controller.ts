@@ -148,8 +148,8 @@ export const checkout = async (req: Request, res: Response) => {
       }
     });
 
-    // Send email notification to tenant (vendor)
-    await sendOrderNotificationEmail(
+    // Send email notification to tenant (vendor) asynchronously
+    sendOrderNotificationEmail(
       currentTenant.email, 
       currentTenant.name, 
       {
