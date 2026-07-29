@@ -48,6 +48,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'An unexpected error occurred on the server' });
 });
 
-app.listen(PORT, () => {
-  console.log(`[API Server] Running on http://localhost:${PORT}`);
+app.listen(PORT as number, '0.0.0.0', () => {
+  console.log(`[API Server] Running on http://0.0.0.0:${PORT}`);
 });
