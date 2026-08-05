@@ -148,10 +148,10 @@ export const checkout = async (req: Request, res: Response) => {
       }
     });
 
-    // Send email notification to tenant (vendor) asynchronously
-    sendOrderNotificationEmail(
-      currentTenant.email, 
-      currentTenant.name, 
+    // Send email notification to tenant (vendor)
+    await sendOrderNotificationEmail(
+      currentTenant.email,
+      currentTenant.name,
       {
         orderNumber: order.orderNumber,
         total: order.total,
@@ -332,7 +332,7 @@ export const exportTodayOrdersCsv = async (req: Request, res: Response) => {
     today.setHours(0, 0, 0, 0);
 
     const orders = await prisma.order.findMany({
-      where: { 
+      where: {
         tenantId: currentTenantId,
         createdAt: {
           gte: today
@@ -349,7 +349,7 @@ export const exportTodayOrdersCsv = async (req: Request, res: Response) => {
     }
 
     const headers = ['Order Number', 'Date', 'Customer Name', 'Customer Email', 'Status', 'Payment Status', 'Payment Method', 'Total', 'Shipping Fee'];
-    
+
     const rows = orders.map(order => [
       order.orderNumber,
       order.createdAt.toISOString(),
