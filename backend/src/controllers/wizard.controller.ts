@@ -494,8 +494,9 @@ export const verifyAndBootstrapStore = async (req: Request, res: Response) => {
     });
 
     // Send Welcome Email
-    const customerUrl = `http://${tenant.slug}.platform.com`; // Update according to actual domain logic
-    const adminUrl = `http://${tenant.slug}.platform.com/admin`; // Update according to actual domain logic
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const customerUrl = `${baseUrl}/store/${tenant.slug}`;
+    const adminUrl = `${baseUrl}/store/${tenant.slug}/admin`;
     await sendWelcomeEmail(owner.email, tenant.name, customerUrl, adminUrl);
 
     return res.status(201).json({
