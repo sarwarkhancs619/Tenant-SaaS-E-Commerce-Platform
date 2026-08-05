@@ -1,4 +1,9 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
+
+// Force IPv4 for Nodemailer to prevent ENETUNREACH errors on platforms like Railway
+// that may not fully support IPv6 outbound connections.
+dns.setDefaultResultOrder('ipv4first');
 
 // Use Ethereal Email for testing. In production, configure with real SMTP credentials.
 const createTransporter = async () => {
