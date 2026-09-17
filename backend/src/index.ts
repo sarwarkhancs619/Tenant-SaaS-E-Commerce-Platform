@@ -9,9 +9,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:3000'];
+
 // CORS setup to allow Next.js app to send requests with headers (X-Tenant-Slug, Authorization)
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. Postman, curl)
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-slug', 'x-platform-admin-secret']
 }));
@@ -48,6 +56,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'An unexpected error occurred on the server' });
 });
 
-app.listen(PORT as number, '0.0.0.0', () => {
-  console.log(`[API Server] Running on http://0.0.0.0:${PORT}`);
-});
+// Export for Vercel serverless
+export default app;
+
+// Local development only
+if (process.env.NODE_ENV !== 'production' || process.env.LOCAL_DEV) {
+  app.listen(PORT as number, '0.0.0.0', () => {
+    console.log(`[API Server] Running on http://0.0.0.0:${PORT}`);
+  });
+}
